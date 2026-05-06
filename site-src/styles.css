@@ -195,15 +195,26 @@ select {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: 1fr auto;
-  width: min(1100px, calc(100vw - 1.5rem));
-  max-height: calc(100vh - 1.5rem);
-  margin: 0.75rem auto;
-  padding: 1rem;
-  border-radius: 28px;
-  background: rgba(26, 23, 19, 0.94);
+  grid-template-rows: auto 1fr auto;
+  width: 100vw;
+  height: 100vh;
+  padding: 1.1rem 1.2rem 1.4rem;
   color: #f7efe2;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
+}
+
+.lightbox__toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  width: 100%;
+}
+
+.lightbox__toolbar-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  min-width: 0;
 }
 
 .lightbox__media {
@@ -211,18 +222,17 @@ select {
   place-items: center;
   min-height: 0;
   width: 100%;
-  height: calc(100vh - 12rem);
+  height: 100%;
 }
 
 .lightbox__media img,
 .lightbox__media video {
   width: auto;
   height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  max-width: calc(100vw - 2.4rem);
+  max-height: calc(100vh - 8.2rem);
   object-fit: contain;
   aspect-ratio: auto;
-  border-radius: 18px;
 }
 
 .lightbox__media img {
@@ -231,31 +241,23 @@ select {
 
 .lightbox__close,
 .lightbox__nav {
-  position: absolute;
-  top: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.38);
   color: inherit;
   min-width: 4.1rem;
   min-height: 2.6rem;
+  padding: 0.55rem 0.95rem;
   cursor: pointer;
-}
-
-.lightbox__close {
-  right: 1rem;
-}
-
-.lightbox__nav--prev {
-  left: 1rem;
-}
-
-.lightbox__nav--next {
-  right: 6rem;
+  backdrop-filter: blur(10px);
 }
 
 .lightbox__meta {
-  padding: 1rem 0 0.3rem;
+  justify-self: center;
+  width: min(100%, 900px);
+  padding: 1rem 1.2rem 0.3rem;
+  text-align: center;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7);
 }
 
 .lightbox__title {
@@ -270,32 +272,129 @@ select {
 
 @media (max-width: 700px) {
   .hero {
-    padding-top: 1.1rem;
+    padding: 0.8rem 0.7rem 0.35rem;
   }
 
   .hero__shell {
-    padding: 1.4rem;
-    border-radius: 22px;
+    padding: 1.05rem 1rem 1.1rem;
+    border-radius: 18px;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.9rem, 9vw, 2.8rem);
+    line-height: 0.98;
+  }
+
+  .hero__summary {
+    margin-top: 0.8rem;
+    font-size: 0.94rem;
+  }
+
+  .page {
+    padding: 0 0.7rem 2rem;
+  }
+
+  .controls {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+    margin: 0.9rem 0 1rem;
+  }
+
+  .field {
+    gap: 0.42rem;
+  }
+
+  .field span {
+    font-size: 0.88rem;
   }
 
   .gallery {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .card {
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  }
+
+  .card:hover {
+    transform: none;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  }
+
+  .card__badge {
+    top: 0.55rem;
+    right: 0.55rem;
+    font-size: 0.66rem;
+    padding: 0.24rem 0.44rem;
   }
 
   .lightbox__panel {
-    width: calc(100vw - 0.8rem);
-    max-height: calc(100vh - 0.8rem);
-    margin: 0.4rem;
-    padding-top: 4.2rem;
+    padding: 0.8rem 0.45rem 1rem;
   }
 
+  .lightbox__toolbar {
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .lightbox__toolbar-group {
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .lightbox__media img,
+  .lightbox__media video {
+    max-width: calc(100vw - 0.9rem);
+    max-height: calc(100vh - 7.2rem);
+  }
+
+  .lightbox__close,
   .lightbox__nav {
-    top: 0.8rem;
-    min-width: 3.3rem;
+    min-width: 4rem;
+    min-height: 2.8rem;
+    padding-inline: 0.95rem;
   }
 
-  .lightbox__nav--next {
-    right: 5rem;
+  .lightbox__meta {
+    padding: 0.8rem 0.4rem 0;
+  }
+}
+
+@media (max-width: 440px) {
+  .gallery {
+    gap: 0.42rem;
+  }
+
+  .field input,
+  .field select {
+    min-height: 3.15rem;
+    padding: 0.78rem 0.9rem;
+    font-size: 1rem;
+  }
+
+  .lightbox__toolbar {
+    flex-wrap: wrap;
+  }
+
+  .lightbox__nav--prev,
+  .lightbox__toolbar-group {
+    width: 100%;
+  }
+
+  .lightbox__toolbar-group {
+    justify-content: space-between;
+  }
+
+  .lightbox__nav--prev,
+  .lightbox__nav--next,
+  .lightbox__close {
+    flex: 1 1 0;
+  }
+
+  .lightbox__media img,
+  .lightbox__media video {
+    max-height: calc(100vh - 8.7rem);
   }
 }

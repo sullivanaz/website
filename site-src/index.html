@@ -11,7 +11,6 @@
   <body>
     <header class="hero">
       <div class="hero__shell">
-        <p class="hero__eyebrow">Shared Album Archive</p>
         <h1 id="album-title">Loading album...</h1>
         <p id="album-summary" class="hero__summary">Fetching album data.</p>
       </div>
@@ -57,9 +56,13 @@
     <section id="lightbox" class="lightbox" hidden aria-modal="true" role="dialog">
       <div class="lightbox__backdrop" data-close></div>
       <div class="lightbox__panel">
-        <button class="lightbox__close" type="button" data-close aria-label="Close viewer">Close</button>
-        <button class="lightbox__nav lightbox__nav--prev" type="button" id="prev-item" aria-label="Previous item">Prev</button>
-        <button class="lightbox__nav lightbox__nav--next" type="button" id="next-item" aria-label="Next item">Next</button>
+        <div class="lightbox__toolbar">
+          <button class="lightbox__nav lightbox__nav--prev" type="button" id="prev-item" aria-label="Previous item">Prev</button>
+          <div class="lightbox__toolbar-group">
+            <button class="lightbox__nav lightbox__nav--next" type="button" id="next-item" aria-label="Next item">Next</button>
+            <button class="lightbox__close" type="button" data-close aria-label="Close viewer">Close</button>
+          </div>
+        </div>
 
         <div id="lightbox-media" class="lightbox__media"></div>
         <div class="lightbox__meta">
