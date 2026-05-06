@@ -17,35 +17,48 @@
     </header>
 
     <main class="page">
-      <section class="controls" aria-label="Gallery controls">
-        <label class="field">
-          <span>Search</span>
-          <input id="search-input" type="search" placeholder="Search captions or names">
-        </label>
+      <div id="mobile-bar" class="mobile-bar" hidden>
+        <p id="mobile-results" class="mobile-bar__results"></p>
+        <button id="mobile-filters-toggle" class="mobile-bar__button" type="button" aria-expanded="false" aria-controls="controls-panel">Filters</button>
+      </div>
 
-        <label class="field">
-          <span>Type</span>
-          <select id="type-filter">
-            <option value="all">All media</option>
-            <option value="photo">Photos</option>
-            <option value="video">Videos</option>
-          </select>
-        </label>
+      <div id="controls-scrim" class="controls-scrim" hidden></div>
+      <section id="controls-panel" class="controls-panel" aria-label="Gallery controls">
+        <div class="controls-panel__header">
+          <p class="controls-panel__title">Browse</p>
+          <button id="mobile-filters-close" class="controls-panel__close" type="button">Done</button>
+        </div>
 
-        <label class="field">
-          <span>Contributor</span>
-          <select id="contributor-filter">
-            <option value="all">Everyone</option>
-          </select>
-        </label>
+        <div class="controls">
+          <label class="field">
+            <span>Search</span>
+            <input id="search-input" type="search" placeholder="Search captions or names">
+          </label>
 
-        <label class="field">
-          <span>Sort</span>
-          <select id="sort-order">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-        </label>
+          <label class="field">
+            <span>Type</span>
+            <select id="type-filter">
+              <option value="all">All media</option>
+              <option value="photo">Photos</option>
+              <option value="video">Videos</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Contributor</span>
+            <select id="contributor-filter">
+              <option value="all">Everyone</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Sort</span>
+            <select id="sort-order">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        </div>
       </section>
 
       <section id="gallery" class="gallery" aria-live="polite"></section>
