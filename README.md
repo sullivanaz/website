@@ -43,6 +43,7 @@ This repo can run as a single container that:
 - builds the gallery on startup
 - serves the static site over HTTP
 - refreshes the album on a timer
+- syncs updated frontend files into `/data/dist` whenever a new container image starts
 
 ### Build
 
@@ -94,3 +95,5 @@ docker compose up -d --build
 - `PGID`: optional GID used by `docker-compose.yml`, default `10001`
 
 Mount `/data` to persistent storage so the generated gallery and cache survive restarts. On Linux, set `PUID` and `PGID` in `.env` to a user that owns `docker-data` so the unprivileged container process can write to it.
+
+When you deploy a newer image, recreate the container from that image. The startup process now rewrites the HTML/CSS/JS shell in `/data/dist` before the album refresh runs, so frontend changes from the image take effect without manually deleting the volume contents. The HTML and manifest are served with `no-store`, and the CSS/JS URLs are versioned for browser cache busting.

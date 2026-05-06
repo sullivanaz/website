@@ -15,6 +15,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from PIL import Image, ImageOps
+from site_assets import copy_static_site
 
 
 DEFAULT_SHARED_HOST = "p23-sharedstreams.icloud.com"
@@ -119,14 +120,6 @@ def download_file(url: str, destination: Path) -> None:
         shutil.copyfileobj(response, handle)
 
     temp_path.replace(destination)
-
-
-def copy_static_site(output_dir: Path) -> None:
-    source_dir = Path(__file__).resolve().parent.parent / "site-src"
-    for file_name in ("index.html", "styles.css", "app.js"):
-        destination = output_dir / file_name
-        ensure_parent(destination)
-        shutil.copy2(source_dir / file_name, destination)
 
 
 def parse_timestamp(value: str) -> datetime:

@@ -9,6 +9,9 @@ import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit
+
+from site_assets import copy_static_site
 
 
 APP_ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +39,19 @@ def env_path(name: str, default: Path) -> Path:
 def redact_album_url(value: str) -> str:
     digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
     return f"sha256:{digest}"
+
+
+class GalleryRequestHandler(SimpleHTTPRequestHandler):
+    def end_headers(self) -> None:
+        request_path = urlsplit(self.path).path or "/"
+        normalized_path = "/index.html" if request_path == "/" else request_path
+
+        if normalized_path.endswith(".html") or normalized_path == "/album.json":
+            self.send_header("Cache-Control", "no-store")
+        elif normalized_path in ("/app.js", "/styles.css"):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+
+        super().end_headers()
 
 
 def build_command() -> list[str]:
@@ -67,6 +83,12 @@ def build_command() -> list[str]:
     return command
 
 
+def sync_static_site(output_dir: Path) -> str:
+    version = copy_static_site(output_dir)
+    print(f"[gallery] synced static shell version {version} into {output_dir}", flush=True)
+    return version
+
+
 def run_build() -> bool:
     command = build_command()
     album_label = redact_album_url(os.environ.get("ALBUM_URL", "").strip())
@@ -74,6 +96,7 @@ def run_build() -> bool:
     cache_dir = env_path("CACHE_DIR", DEFAULT_CACHE_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_dir.mkdir(parents=True, exist_ok=True)
+    sync_static_site(output_dir)
 
     print(
         f"[gallery] running build for album {album_label} into {output_dir}",
@@ -111,7 +134,7 @@ def main() -> int:
     if not initial_ok:
         print("[gallery] initial build failed; serving any existing output", flush=True)
 
-    handler_class = partial(SimpleHTTPRequestHandler, directory=str(output_dir))
+    handler_class = partial(GalleryRequestHandler, directory=str(output_dir))
     server = ThreadingHTTPServer(("0.0.0.0", port), handler_class)
 
     signal.signal(signal.SIGTERM, handle_signal)
