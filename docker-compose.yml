@@ -1,0 +1,17 @@
+services:
+  icloud-gallery:
+    build: .
+    container_name: icloud-gallery
+    ports:
+      - "8585:8585"
+    user: "${PUID:-10001}:${PGID:-10001}"
+    environment:
+      ALBUM_URL: "${ALBUM_URL:?Set ALBUM_URL in .env}"
+      PORT: "${PORT:-8585}"
+      REFRESH_INTERVAL_SECONDS: "${REFRESH_INTERVAL_SECONDS:-43200}"
+      WORKERS: "${WORKERS:-8}"
+      OUTPUT_DIR: "/data/dist"
+      CACHE_DIR: "/data/cache"
+    volumes:
+      - ./docker-data:/data
+    restart: unless-stopped
