@@ -225,6 +225,10 @@ select {
   border-radius: 18px;
 }
 
+.lightbox__media img {
+  cursor: pointer;
+}
+
 .lightbox__close,
 .lightbox__nav {
   position: absolute;

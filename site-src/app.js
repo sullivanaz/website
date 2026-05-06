@@ -183,6 +183,7 @@ function openLightbox(index) {
     image.alt = item.caption || `${item.type} from ${item.contributor}`;
     image.width = item.width;
     image.height = item.height;
+    image.addEventListener("click", () => moveLightbox(1));
     lightboxMedia.append(image);
   }
 
