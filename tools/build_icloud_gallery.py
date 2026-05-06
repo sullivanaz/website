@@ -211,10 +211,28 @@ def save_webp_variant(source_path: Path, destination: Path, max_edge: int, quali
     return resized.size
 
 
-def build_file_stem(index: int, item: dict[str, Any]) -> str:
+def build_file_stem(item: dict[str, Any]) -> str:
+    date_part = item["dateCreated"][:10]
+    guid_part = item["photoGuid"].lower()
+    return f"{date_part}-{guid_part}"
+
+
+def legacy_file_glob(item: dict[str, Any], suffix: str) -> str:
     date_part = item["dateCreated"][:10]
     guid_part = item["photoGuid"][:8].lower()
-    return f"{index:04d}-{date_part}-{guid_part}"
+    return f"*-{date_part}-{guid_part}{suffix}"
+
+
+def migrate_legacy_file(item: dict[str, Any], destination: Path) -> None:
+    if destination.exists():
+        return
+
+    ensure_parent(destination)
+    matches = sorted(destination.parent.glob(legacy_file_glob(item, destination.suffix)))
+    if not matches:
+        return
+
+    matches[0].replace(destination)
 
 
 def contributor_name(item: dict[str, Any]) -> str:
@@ -229,13 +247,12 @@ def ext_from_url(url: str, fallback: str) -> str:
 
 
 def process_item(
-    index: int,
     item: dict[str, Any],
     asset_urls: dict[str, str],
     output_dir: Path,
     cache_dir: Path,
 ) -> dict[str, Any]:
-    stem = build_file_stem(index, item)
+    stem = build_file_stem(item)
     media_type = "video" if item.get("mediaAssetType") == "video" else "photo"
     caption = (item.get("caption") or "").strip()
 
@@ -246,10 +263,13 @@ def process_item(
             raise SkipItemError(f"Missing asset URL for {item['photoGuid']}")
         source_ext = ext_from_url(image_url, ".jpg")
         source_path = cache_dir / "images" / f"{stem}{source_ext}"
+        migrate_legacy_file(item, source_path)
         download_file(image_url, source_path)
 
         image_rel = Path("assets/images") / f"{stem}.webp"
         thumb_rel = Path("assets/thumbs") / f"{stem}.webp"
+        migrate_legacy_file(item, output_dir / image_rel)
+        migrate_legacy_file(item, output_dir / thumb_rel)
         image_size = save_webp_variant(source_path, output_dir / image_rel, IMAGE_MAX_EDGE, 82)
         thumb_size = save_webp_variant(source_path, output_dir / thumb_rel, THUMB_MAX_EDGE, 72)
 
@@ -281,6 +301,10 @@ def process_item(
     thumb_rel = Path("assets/thumbs") / f"{stem}.webp"
 
     poster_source = cache_dir / "posters" / f"{stem}{poster_ext}"
+    migrate_legacy_file(item, output_dir / video_rel)
+    migrate_legacy_file(item, poster_source)
+    migrate_legacy_file(item, output_dir / poster_rel)
+    migrate_legacy_file(item, output_dir / thumb_rel)
     download_file(video_url, output_dir / video_rel)
     download_file(poster_url, poster_source)
 
@@ -386,7 +410,7 @@ def main() -> int:
     skipped_items: list[dict[str, str]] = []
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as executor:
         futures = {
-            executor.submit(process_item, index, item, asset_urls, output_dir, cache_dir): index
+            executor.submit(process_item, item, asset_urls, output_dir, cache_dir): index
             for index, item in enumerate(items, start=1)
         }
 
