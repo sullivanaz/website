@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 from site_assets import copy_static_site
 
 
@@ -201,13 +201,19 @@ def normalize_image(source_path: Path) -> Image.Image:
 
 def save_webp_variant(source_path: Path, destination: Path, max_edge: int, quality: int) -> tuple[int, int]:
     if destination.exists():
-        with Image.open(destination) as image:
-            return image.size
+        try:
+            with Image.open(destination) as image:
+                image.load()
+                return image.size
+        except (UnidentifiedImageError, OSError):
+            destination.unlink(missing_ok=True)
 
     image = normalize_image(source_path)
     resized = resize_to_limit(image, max_edge)
     ensure_parent(destination)
-    resized.save(destination, format="WEBP", quality=quality, method=6)
+    temp_path = destination.with_suffix(destination.suffix + ".part")
+    resized.save(temp_path, format="WEBP", quality=quality, method=6)
+    temp_path.replace(destination)
     return resized.size
 
 
