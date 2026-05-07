@@ -286,7 +286,6 @@ function openLightbox(index) {
     image.alt = item.caption || `${item.type} from ${item.contributor}`;
     image.width = item.width;
     image.height = item.height;
-    image.addEventListener("click", () => moveLightbox(1));
     lightboxMedia.append(image);
   }
 
@@ -314,6 +313,21 @@ function moveLightbox(direction) {
   }
 
   openLightbox(nextIndex);
+}
+
+function handleLightboxMediaClick(event) {
+  if (state.activeIndex === -1) {
+    return;
+  }
+
+  const interactiveTarget = event.target.closest("video, button, a, input, select, textarea");
+  if (interactiveTarget) {
+    return;
+  }
+
+  const bounds = lightboxMedia.getBoundingClientRect();
+  const direction = event.clientX < bounds.left + bounds.width / 2 ? -1 : 1;
+  moveLightbox(direction);
 }
 
 async function loadAlbum() {
@@ -359,6 +373,7 @@ function wireControls() {
   });
   mobileFiltersClose.addEventListener("click", closeControlsPanel);
   controlsScrim.addEventListener("click", closeControlsPanel);
+  lightboxMedia.addEventListener("click", handleLightboxMediaClick);
   document.getElementById("prev-item").addEventListener("click", () => moveLightbox(-1));
   document.getElementById("next-item").addEventListener("click", () => moveLightbox(1));
 

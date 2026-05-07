@@ -239,6 +239,7 @@ select {
   min-height: 0;
   width: 100%;
   height: 100%;
+  cursor: pointer;
 }
 
 .lightbox__media img,
@@ -253,6 +254,10 @@ select {
 
 .lightbox__media img {
   cursor: pointer;
+}
+
+.lightbox__media video {
+  cursor: default;
 }
 
 .lightbox__close,

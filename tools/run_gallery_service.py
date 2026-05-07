@@ -46,6 +46,10 @@ def redact_album_url(value: str) -> str:
 
 
 class GalleryRequestHandler(SimpleHTTPRequestHandler):
+    def list_directory(self, path: str) -> None:
+        self.send_error(404, "Not found")
+        return None
+
     def end_headers(self) -> None:
         request_path = urlsplit(self.path).path or "/"
         normalized_path = "/index.html" if request_path == "/" else request_path
