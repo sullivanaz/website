@@ -517,6 +517,7 @@ select {
 
   .lightbox__nav--prev,
   .lightbox__nav--next,
+  #slideshow-toggle,
   .lightbox__close {
     flex: 1 1 0;
   }
