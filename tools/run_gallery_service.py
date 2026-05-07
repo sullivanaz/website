@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import signal
 import subprocess
 import sys
 import threading
+from datetime import datetime
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,6 +23,7 @@ DEFAULT_CACHE_DIR = Path("/data/cache")
 DEFAULT_REFRESH_INTERVAL_SECONDS = 43200
 DEFAULT_PORT = 8585
 DEFAULT_MAX_DOWNLOAD_BYTES = 4 * 1024 * 1024 * 1024
+BUILD_LOCK = threading.Lock()
 
 
 def env_int(name: str, default: int) -> int:
@@ -93,22 +96,76 @@ def sync_static_site(output_dir: Path) -> str:
     return version
 
 
-def run_build() -> bool:
-    command = build_command()
-    album_label = redact_album_url(os.environ.get("ALBUM_URL", "").strip())
-    output_dir = env_path("OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
-    cache_dir = env_path("CACHE_DIR", DEFAULT_CACHE_DIR)
+def write_status_manifest(output_dir: Path, status: str, message: str) -> None:
+    manifest_path = output_dir / "album.json"
+    payload = {
+        "status": status,
+        "message": message,
+        "albumTitle": "Shared Album",
+        "generatedAt": datetime.now().astimezone().isoformat(),
+        "counts": {
+            "all": 0,
+            "photos": 0,
+            "videos": 0,
+            "contributors": 0,
+            "skipped": 0,
+        },
+        "dateRange": {
+            "oldest": None,
+            "newest": None,
+        },
+        "contributors": [],
+        "skippedItems": [],
+        "items": [],
+    }
+    temp_path = manifest_path.with_suffix(".json.part")
+    temp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    temp_path.replace(manifest_path)
+
+
+def read_manifest_status(output_dir: Path) -> str:
+    manifest_path = output_dir / "album.json"
+    if not manifest_path.exists():
+        return ""
+    try:
+        return str(json.loads(manifest_path.read_text(encoding="utf-8")).get("status", ""))
+    except (OSError, json.JSONDecodeError):
+        return ""
+
+
+def prepare_site_for_serving(output_dir: Path, cache_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_dir.mkdir(parents=True, exist_ok=True)
     sync_static_site(output_dir)
+    if not (output_dir / "album.json").exists():
+        write_status_manifest(
+            output_dir,
+            "building",
+            "The gallery is downloading media and will appear automatically when it is ready.",
+        )
 
-    print(
-        f"[gallery] running build for album {album_label} into {output_dir}",
-        flush=True,
-    )
-    result = subprocess.run(command, cwd=APP_ROOT, check=False)
-    print(f"[gallery] build exit code: {result.returncode}", flush=True)
-    return result.returncode == 0
+
+def run_build() -> bool:
+    output_dir = env_path("OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
+    cache_dir = env_path("CACHE_DIR", DEFAULT_CACHE_DIR)
+    with BUILD_LOCK:
+        command = build_command()
+        album_label = redact_album_url(os.environ.get("ALBUM_URL", "").strip())
+        prepare_site_for_serving(output_dir, cache_dir)
+
+        print(
+            f"[gallery] running build for album {album_label} into {output_dir}",
+            flush=True,
+        )
+        result = subprocess.run(command, cwd=APP_ROOT, check=False)
+        print(f"[gallery] build exit code: {result.returncode}", flush=True)
+        if result.returncode != 0 and read_manifest_status(output_dir) == "building":
+            write_status_manifest(
+                output_dir,
+                "error",
+                "The gallery build failed. Check the container logs for details.",
+            )
+        return result.returncode == 0
 
 
 def refresh_loop(stop_event: threading.Event) -> None:
@@ -125,6 +182,7 @@ def refresh_loop(stop_event: threading.Event) -> None:
 
 def main() -> int:
     output_dir = env_path("OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
+    cache_dir = env_path("CACHE_DIR", DEFAULT_CACHE_DIR)
     port = env_int("PORT", DEFAULT_PORT)
 
     stop_event = threading.Event()
@@ -134,15 +192,16 @@ def main() -> int:
         stop_event.set()
         server.shutdown()
 
-    initial_ok = run_build()
-    if not initial_ok:
-        print("[gallery] initial build failed; serving any existing output", flush=True)
+    prepare_site_for_serving(output_dir, cache_dir)
 
     handler_class = partial(GalleryRequestHandler, directory=str(output_dir))
     server = ThreadingHTTPServer(("0.0.0.0", port), handler_class)
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
+
+    initial_build_thread = threading.Thread(target=run_build, daemon=True)
+    initial_build_thread.start()
 
     refresh_thread = threading.Thread(target=refresh_loop, args=(stop_event,), daemon=True)
     refresh_thread.start()

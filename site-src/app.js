@@ -6,6 +6,7 @@ const state = {
   activeIndex: -1,
   controlsOpen: false,
   isMobile: false,
+  loadRetryTimer: null,
 };
 
 const gallery = document.getElementById("gallery");
@@ -122,6 +123,29 @@ function updateHero(album) {
   document.getElementById("album-summary").textContent = state.isMobile
     ? buildCompactSummary(album)
     : buildSummary(album);
+}
+
+function showLoadingState(message) {
+  document.title = "Building gallery - Shared Album";
+  document.getElementById("album-title").textContent = "Building gallery";
+  document.getElementById("album-summary").textContent = message;
+  gallery.innerHTML = "";
+  emptyState.hidden = true;
+  mobileResults.textContent = "Loading";
+}
+
+function showErrorState(message) {
+  document.title = "Album failed to load - Shared Album";
+  document.getElementById("album-title").textContent = "Album failed to load";
+  document.getElementById("album-summary").textContent = message;
+  gallery.innerHTML = "";
+  emptyState.hidden = true;
+  mobileResults.textContent = "";
+}
+
+function scheduleAlbumReload() {
+  window.clearTimeout(state.loadRetryTimer);
+  state.loadRetryTimer = window.setTimeout(loadAlbum, 10000);
 }
 
 function populateContributors(album) {
@@ -295,10 +319,23 @@ function moveLightbox(direction) {
 async function loadAlbum() {
   const response = await fetch("album.json", { cache: "no-store" });
   if (!response.ok) {
-    throw new Error(`Failed to load album manifest: ${response.status}`);
+    showLoadingState("The gallery is getting ready and will appear automatically.");
+    scheduleAlbumReload();
+    return;
   }
 
   const album = await response.json();
+  if (album.status === "building") {
+    showLoadingState(album.message || "The gallery is downloading media and will appear automatically.");
+    scheduleAlbumReload();
+    return;
+  }
+  if (album.status === "error") {
+    showErrorState(album.message || "The gallery build failed. Check the container logs for details.");
+    return;
+  }
+
+  window.clearTimeout(state.loadRetryTimer);
   state.album = album;
   updateHero(album);
   populateContributors(album);
@@ -367,6 +404,6 @@ function wireControls() {
 
 wireControls();
 loadAlbum().catch((error) => {
-  document.getElementById("album-title").textContent = "Album failed to load";
-  document.getElementById("album-summary").textContent = error.message;
+  showLoadingState(error.message);
+  scheduleAlbumReload();
 });
