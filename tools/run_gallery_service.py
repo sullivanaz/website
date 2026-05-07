@@ -20,6 +20,7 @@ DEFAULT_OUTPUT_DIR = Path("/data/dist")
 DEFAULT_CACHE_DIR = Path("/data/cache")
 DEFAULT_REFRESH_INTERVAL_SECONDS = 43200
 DEFAULT_PORT = 8585
+DEFAULT_MAX_DOWNLOAD_BYTES = 4 * 1024 * 1024 * 1024
 
 
 def env_int(name: str, default: int) -> int:
@@ -62,6 +63,7 @@ def build_command() -> list[str]:
     output_dir = env_path("OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
     cache_dir = env_path("CACHE_DIR", DEFAULT_CACHE_DIR)
     workers = env_int("WORKERS", 8)
+    max_download_bytes = env_int("MAX_DOWNLOAD_BYTES", DEFAULT_MAX_DOWNLOAD_BYTES)
     max_items = os.environ.get("MAX_ITEMS", "").strip()
 
     command = [
@@ -75,6 +77,8 @@ def build_command() -> list[str]:
         str(cache_dir),
         "--workers",
         str(workers),
+        "--max-download-bytes",
+        str(max_download_bytes),
     ]
 
     if max_items:

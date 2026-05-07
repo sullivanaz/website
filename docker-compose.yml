@@ -10,6 +10,7 @@ services:
       PORT: "${PORT:-8585}"
       REFRESH_INTERVAL_SECONDS: "${REFRESH_INTERVAL_SECONDS:-43200}"
       WORKERS: "${WORKERS:-8}"
+      MAX_DOWNLOAD_BYTES: "${MAX_DOWNLOAD_BYTES:-4294967296}"
       OUTPUT_DIR: "/data/dist"
       CACHE_DIR: "/data/cache"
     volumes:

@@ -85,6 +85,7 @@ docker compose up -d --build
 - `PORT`: HTTP port inside the container, default `8585`
 - `REFRESH_INTERVAL_SECONDS`: poll interval for new media, default `43200` (12 hours)
 - `WORKERS`: concurrent download workers, default `8`
+- `MAX_DOWNLOAD_BYTES`: maximum size for a single downloaded source asset, default `4294967296` (4 GiB)
 - `OUTPUT_DIR`: generated site path inside the container, default `/data/dist`
 - `CACHE_DIR`: persistent source-media cache path inside the container, default `/data/cache`
 - `MAX_ITEMS`: optional test limit
