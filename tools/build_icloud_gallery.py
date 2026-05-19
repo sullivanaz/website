@@ -482,6 +482,189 @@ def build_manifest(
     }
 
 
+def is_safe_existing_asset(output_dir: Path, value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+
+    relative_path = Path(value)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        return False
+
+    try:
+        ensure_within_root(output_dir / relative_path, output_dir).relative_to(output_dir.resolve())
+    except ValueError:
+        return False
+
+    return (output_dir / relative_path).is_file()
+
+
+def is_preservable_item(output_dir: Path, item: object) -> bool:
+    if not isinstance(item, dict):
+        return False
+    if not isinstance(item.get("id"), str) or not item["id"]:
+        return False
+    if item.get("type") not in ("photo", "video"):
+        return False
+    if not isinstance(item.get("dateCreated"), str):
+        return False
+
+    try:
+        parse_timestamp(item["dateCreated"])
+    except ValueError:
+        return False
+
+    required_paths = ["src", "thumb"]
+    if item["type"] == "video":
+        required_paths.append("poster")
+
+    return all(is_safe_existing_asset(output_dir, item.get(field)) for field in required_paths)
+
+
+def load_previous_items(output_dir: Path) -> list[dict[str, Any]]:
+    manifest_path = output_dir / "album.json"
+    if not manifest_path.exists():
+        return []
+
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    items = data.get("items", [])
+    if not isinstance(items, list):
+        return []
+
+    return [item for item in items if is_preservable_item(output_dir, item)]
+
+
+def path_to_manifest_value(path: Path) -> str:
+    return path.as_posix()
+
+
+def read_image_size(path: Path) -> tuple[int, int]:
+    with Image.open(path) as image:
+        return image.size
+
+
+def archived_date_from_stem(stem: str) -> str | None:
+    date_part = stem[:10]
+    try:
+        datetime.fromisoformat(date_part)
+    except ValueError:
+        return None
+    return f"{date_part}T00:00:00+00:00"
+
+
+def build_archived_photo_item(output_dir: Path, image_path: Path) -> dict[str, Any] | None:
+    stem = image_path.stem
+    date_created = archived_date_from_stem(stem)
+    thumb_path = output_dir / "assets" / "thumbs" / f"{stem}.webp"
+    if not date_created or not thumb_path.is_file():
+        return None
+
+    width, height = read_image_size(image_path)
+    thumb_width, thumb_height = read_image_size(thumb_path)
+    return {
+        "id": f"archived-photo-{stem}",
+        "type": "photo",
+        "caption": "",
+        "contributor": "Archived",
+        "dateCreated": date_created,
+        "width": width,
+        "height": height,
+        "thumbWidth": thumb_width,
+        "thumbHeight": thumb_height,
+        "src": path_to_manifest_value(Path("assets/images") / image_path.name),
+        "thumb": path_to_manifest_value(Path("assets/thumbs") / thumb_path.name),
+        "archived": True,
+    }
+
+
+def build_archived_video_item(output_dir: Path, video_path: Path) -> dict[str, Any] | None:
+    stem = video_path.stem
+    date_created = archived_date_from_stem(stem)
+    poster_path = output_dir / "assets" / "posters" / f"{stem}.webp"
+    thumb_path = output_dir / "assets" / "thumbs" / f"{stem}.webp"
+    if not date_created or not poster_path.is_file() or not thumb_path.is_file():
+        return None
+
+    width, height = read_image_size(poster_path)
+    thumb_width, thumb_height = read_image_size(thumb_path)
+    return {
+        "id": f"archived-video-{stem}",
+        "type": "video",
+        "caption": "",
+        "contributor": "Archived",
+        "dateCreated": date_created,
+        "width": width,
+        "height": height,
+        "thumbWidth": thumb_width,
+        "thumbHeight": thumb_height,
+        "src": path_to_manifest_value(Path("assets/videos") / video_path.name),
+        "thumb": path_to_manifest_value(Path("assets/thumbs") / thumb_path.name),
+        "poster": path_to_manifest_value(Path("assets/posters") / poster_path.name),
+        "archived": True,
+    }
+
+
+def discover_archived_asset_items(output_dir: Path) -> list[dict[str, Any]]:
+    discovered: list[dict[str, Any]] = []
+    image_dir = output_dir / "assets" / "images"
+    if image_dir.is_dir():
+        for image_path in sorted(image_dir.glob("*.webp")):
+            try:
+                item = build_archived_photo_item(output_dir, image_path)
+            except (OSError, UnidentifiedImageError):
+                item = None
+            if item:
+                discovered.append(item)
+
+    video_dir = output_dir / "assets" / "videos"
+    if video_dir.is_dir():
+        for video_path in sorted(video_dir.iterdir()):
+            if not video_path.is_file():
+                continue
+            try:
+                item = build_archived_video_item(output_dir, video_path)
+            except (OSError, UnidentifiedImageError):
+                item = None
+            if item:
+                discovered.append(item)
+
+    return discovered
+
+
+def merge_preserved_items(
+    output_dir: Path,
+    rendered_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged_items = list(rendered_items)
+    rendered_ids = {item["id"] for item in rendered_items}
+    rendered_asset_paths = {
+        item[path_key]
+        for item in rendered_items
+        for path_key in ("src", "thumb", "poster")
+        if path_key in item
+    }
+
+    for item in [*load_previous_items(output_dir), *discover_archived_asset_items(output_dir)]:
+        if item["id"] in rendered_ids:
+            continue
+        if item["src"] in rendered_asset_paths:
+            continue
+        preserved = dict(item)
+        preserved["archived"] = True
+        merged_items.append(preserved)
+        rendered_ids.add(preserved["id"])
+        rendered_asset_paths.add(preserved["src"])
+
+    return sorted(
+        merged_items,
+        key=lambda entry: parse_timestamp(entry["dateCreated"]),
+        reverse=True,
+    )
+
+
 def fetch_album(token: str) -> tuple[str, dict[str, Any]]:
     payload = {"streamCtag": None}
     initial = post_json(f"https://{DEFAULT_SHARED_HOST}/{token}/sharedstreams/webstream", payload)
@@ -552,7 +735,7 @@ def main() -> int:
             if completed % 25 == 0 or completed == len(items):
                 print(f"Processed {completed}/{len(items)} items...")
 
-    final_items = [item for item in rendered_items if item is not None]
+    final_items = merge_preserved_items(output_dir, [item for item in rendered_items if item is not None])
     manifest = build_manifest(album_data, final_items, skipped_items)
     manifest_path = output_dir / "album.json"
     ensure_parent(manifest_path)
